@@ -68,12 +68,12 @@ int main(int argc, char *argv[]) {
 
 	for (unsigned int s=0;s<opj.spreadCount();s++) {
 		Origin::SpreadSheet spread = opj.spread(s);
-		int columnCount=spread.columns.size();
+		size_t columnCount = spread.columns.size();
 		cout << "Spreadsheet " << (s+1) << endl;
 		cout << " Name: " << spread.name.c_str() << endl;
 		cout << " Label: " << spread.label.c_str() << endl;
 		cout << "	Columns: " << columnCount << endl;
-		for (int j=0;j<columnCount;j++) {
+		for (size_t j=0;j<columnCount;j++) {
 			Origin::SpreadColumn column = spread.columns[j];
 			cout << "	Column " << (j+1) << " : " << column.name.c_str() << " / type : " << column.type << ", rows : " << spread.maxRows << endl;
 		}
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 				return -1;
 			}
 			// header
-			for (int j=0;j<columnCount;j++) {
+			for (size_t j=0;j<columnCount;j++) {
 				outf << spread.columns[j].name.c_str() << "; ";
 				cout << spread.columns[j].name.c_str();
 			}
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 			cout << endl << " Data: " << endl;
 			// data
 			for (int i=0;i<(int)spread.maxRows;i++) {
-				for (int j=0;j<columnCount;j++) {
+				for (size_t j=0;j<columnCount;j++) {
 					if (i<(int)spread.columns[j].data.size()) {
 						Origin::variant value(spread.columns[j].data[i]);
 						double v=0.;
