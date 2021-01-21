@@ -45,8 +45,9 @@ set (devel-headers
 	)
 
 # Generate a pkg-config file matching this config
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/liborigin.pc.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc" @ONLY)
+if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" ) 
+  configure_file( "liborigin.pc.in" "$liborigin.pc" @ONLY )
+endif()
 
 # allow for installation of individual targets
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
@@ -70,33 +71,40 @@ else()
     message("File parsing will NOT be logged. Define GENERATE_CODE_FOR_LOG to activate logging.")
 endif ()
 
-# install libraries
-include(GNUInstallDirs)
-install( TARGETS origin origin-static
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
-
-# install headers
-install(FILES ${devel-headers} DESTINATION include/liborigin)
-
-# install pkg-config file
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-
 # command line util
 add_executable(opj2dat opj2dat.cpp)
 target_link_libraries (opj2dat origin-static)
 
-install(TARGETS opj2dat DESTINATION bin OPTIONAL)
+include(GNUInstallDirs)
 
-# documentation
-install(FILES COPYING FORMAT README DESTINATION share/doc/liborigin OPTIONAL)
-configure_file(doc/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-find_package(Doxygen)
-if(DOXYGEN_FOUND)
+if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
+  # install libraries
+  install( TARGETS origin origin-static
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+  # install headers
+  install(FILES ${devel-headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/liborigin)
+  # install pkg-config file
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+  #
+  install(TARGETS opj2dat DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+  # documentation
+  install(FILES COPYING FORMAT README
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    OPTIONAL
+    )
+  # Doxygen
+  configure_file(doc/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+  find_package(Doxygen)
+  if(DOXYGEN_FOUND)
 	add_custom_target(doc ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 	set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${CMAKE_CURRENT_BINARY_DIR}/html)
-	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION share/doc/liborigin OPTIONAL)
-endif(DOXYGEN_FOUND)
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+      DESTINATION ${CMAKE_INSTALL_DOCDIR}
+      OPTIONAL
+      )
+  endif()
+endif()
