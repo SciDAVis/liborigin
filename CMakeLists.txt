@@ -52,34 +52,39 @@ endif()
 # allow for installation of individual targets
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
-# dynamic library
-add_library (origin SHARED ${sources})
-set_target_properties(origin PROPERTIES
-	VERSION ${PROJECT_VERSION}
-	SOVERSION ${PROJECT_VERSION_MAJOR} )
-
-# static library
-add_library (origin-static STATIC ${sources})
-set_target_properties(origin-static PROPERTIES OUTPUT_NAME "origin" POSITION_INDEPENDENT_CODE ON)
+# object library
+add_library (origin OBJECT ${sources})
+set_target_properties(origin PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # inform on log setting
 if (DEFINED GENERATE_CODE_FOR_LOG)
     message("File parsing will be logged.")
     target_compile_definitions(origin PRIVATE GENERATE_CODE_FOR_LOG=${GENERATE_CODE_FOR_LOG})
-    target_compile_definitions(origin-static PRIVATE GENERATE_CODE_FOR_LOG=${GENERATE_CODE_FOR_LOG})
 else()
     message("File parsing will NOT be logged. Define GENERATE_CODE_FOR_LOG to activate logging.")
 endif ()
 
+# Shared library
+add_library( origin_shared SHARED $<TARGET_OBJECTS:origin>)
+
+# Static library
+add_library (origin_static STATIC $<TARGET_OBJECTS:origin>)
+
+set_target_properties(origin_shared origin_static PROPERTIES
+    OUTPUT_NAME "origin"
+	VERSION ${PROJECT_VERSION}
+	SOVERSION ${PROJECT_VERSION_MAJOR}
+    )
+
 # command line util
 add_executable(opj2dat opj2dat.cpp)
-target_link_libraries (opj2dat origin-static)
+target_link_libraries (opj2dat origin_static)
 
 include(GNUInstallDirs)
 
 if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
   # install libraries
-  install( TARGETS origin origin-static
+  install( TARGETS origin_shared origin_static
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
