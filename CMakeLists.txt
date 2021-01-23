@@ -44,11 +44,6 @@ set (devel-headers
 	tree.hh
 	)
 
-# Generate a pkg-config file matching this config
-if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" ) 
-  configure_file( "liborigin.pc.in" "$liborigin.pc" @ONLY )
-endif()
-
 # allow for installation of individual targets
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
@@ -64,25 +59,28 @@ else()
     message("File parsing will NOT be logged. Define GENERATE_CODE_FOR_LOG to activate logging.")
 endif ()
 
-# Shared library
-add_library( origin_shared SHARED $<TARGET_OBJECTS:origin>)
-
 # Static library
 add_library (origin_static STATIC $<TARGET_OBJECTS:origin>)
 
-set_target_properties(origin_shared origin_static PROPERTIES
+set_target_properties(origin_static PROPERTIES OUTPUT_NAME "origin" )
+
+if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
+
+  # Shared library
+  add_library( origin_shared SHARED $<TARGET_OBJECTS:origin>)
+  set_target_properties(origin_shared PROPERTIES
     OUTPUT_NAME "origin"
 	VERSION ${PROJECT_VERSION}
 	SOVERSION ${PROJECT_VERSION_MAJOR}
     )
+  # Generate a pkg-config file matching this config
+  configure_file( "liborigin.pc.in" "$liborigin.pc" @ONLY )
 
-# command line util
-add_executable(opj2dat opj2dat.cpp)
-target_link_libraries (opj2dat origin_static)
-
-include(GNUInstallDirs)
-
-if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
+  # command line util
+  add_executable(opj2dat opj2dat.cpp)
+  target_link_libraries (opj2dat origin_static)
+  
+  include(GNUInstallDirs)
   # install libraries
   install( TARGETS origin_shared origin_static
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
