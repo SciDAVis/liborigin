@@ -1,13 +1,29 @@
 # CMakeLists.txt for liborigin
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16.3)
 
-# c++11 standard
-add_compile_options(-std=c++11)
+project( liborigin
+  VERSION 3.0.0
+  LANGUAGES CXX
+  )
 
-# library version
-set(LIBORIGIN_VERSION_MAJOR 3)
-set(LIBORIGIN_VERSION_MINOR 0)
-set(LIBORIGIN_VERSION_BUGFIX 0)
+set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_STANDARD_REQUIRED TRUE )
+set( CMAKE_CXX_EXTENSIONS OFF )
+
+if( MSVC )
+  # /wd4456 /wd4458 Silent "declaration of %1 hides %2 ..."
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /W4 /permissive- /wd4456 /wd4458" )
+  add_compile_definitions( _CRT_SECURE_NO_WARNINGS
+    _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING )
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-nonportable-include-path" )
+  else()
+    add_compile_options( "/MP" )
+  endif()
+else()
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -Wall -Wextra -pedantic" )
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic" )
+endif()
 
 # compile-time configuration variables to be linked in
 configure_file(config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
@@ -28,67 +44,70 @@ set (devel-headers
 	tree.hh
 	)
 
-# LIB_SUFFIX can either be defined at cmake command line: cmake -DLIB_SUFFIX:STRING=64 ...
-if (NOT (LIB_SUFFIX STREQUAL "${LIB_SUFFIX}"))
-    message("LIB_SUFFIX not defined.")
-    # ... or deduced from size of void ptr
-    if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set( LIB_SUFFIX "64")
-    else ()
-        set( LIB_SUFFIX "")
-    endif ()
-    message("LIB_SUFFIX set to '${LIB_SUFFIX}'")
-endif()
-
-# Generate a pkg-config file matching this config
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/liborigin.pc.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc" @ONLY)
-
 # allow for installation of individual targets
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
-# dynamic library
-add_library (origin SHARED ${sources})
-set_target_properties(origin PROPERTIES
-	VERSION ${LIBORIGIN_VERSION_MAJOR}.${LIBORIGIN_VERSION_MINOR}.${LIBORIGIN_VERSION_BUGFIX}
-	SOVERSION ${LIBORIGIN_VERSION_MAJOR} )
-
-# static library
-add_library (origin-static STATIC ${sources})
-set_target_properties(origin-static PROPERTIES OUTPUT_NAME "origin" POSITION_INDEPENDENT_CODE ON)
+# object library
+add_library (origin OBJECT ${sources})
+set_target_properties(origin PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # inform on log setting
 if (DEFINED GENERATE_CODE_FOR_LOG)
     message("File parsing will be logged.")
     target_compile_definitions(origin PRIVATE GENERATE_CODE_FOR_LOG=${GENERATE_CODE_FOR_LOG})
-    target_compile_definitions(origin-static PRIVATE GENERATE_CODE_FOR_LOG=${GENERATE_CODE_FOR_LOG})
 else()
     message("File parsing will NOT be logged. Define GENERATE_CODE_FOR_LOG to activate logging.")
 endif ()
 
-# install libraries
-install(TARGETS origin DESTINATION lib${LIB_SUFFIX} OPTIONAL)
-install(TARGETS origin-static DESTINATION lib${LIB_SUFFIX} OPTIONAL)
+# Static library
+add_library (origin_static STATIC $<TARGET_OBJECTS:origin>)
 
-# install headers
-install(FILES ${devel-headers} DESTINATION include/liborigin)
+set_target_properties(origin_static PROPERTIES OUTPUT_NAME "origin" )
 
-# install pkg-config file
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc DESTINATION lib${LIB_SUFFIX}/pkgconfig)
+if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
 
-# command line util
-add_executable(opj2dat opj2dat.cpp)
-target_link_libraries (opj2dat origin-static)
+  # Shared library
+  add_library( origin_shared SHARED $<TARGET_OBJECTS:origin>)
+  set_target_properties(origin_shared PROPERTIES
+    OUTPUT_NAME "origin"
+	VERSION ${PROJECT_VERSION}
+	SOVERSION ${PROJECT_VERSION_MAJOR}
+    )
+  # Generate a pkg-config file matching this config
+  configure_file( "liborigin.pc.in" "$liborigin.pc" @ONLY )
 
-install(TARGETS opj2dat DESTINATION bin OPTIONAL)
-
-# documentation
-install(FILES COPYING FORMAT README DESTINATION share/doc/liborigin OPTIONAL)
-configure_file(doc/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-find_package(Doxygen)
-if(DOXYGEN_FOUND)
+  # command line util
+  add_executable(opj2dat opj2dat.cpp)
+  target_link_libraries (opj2dat origin_static)
+  
+  include(GNUInstallDirs)
+  # install libraries
+  install( TARGETS origin_shared origin_static
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+  # install headers
+  install(FILES ${devel-headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/liborigin)
+  # install pkg-config file
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+  #
+  install(TARGETS opj2dat DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+  # documentation
+  install(FILES COPYING FORMAT README
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    OPTIONAL
+    )
+  # Doxygen
+  configure_file(doc/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+  find_package(Doxygen)
+  if(DOXYGEN_FOUND)
 	add_custom_target(doc ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 	set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${CMAKE_CURRENT_BINARY_DIR}/html)
-	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION share/doc/liborigin OPTIONAL)
-endif(DOXYGEN_FOUND)
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+      DESTINATION ${CMAKE_INSTALL_DOCDIR}
+      OPTIONAL
+      )
+  endif()
+endif()
