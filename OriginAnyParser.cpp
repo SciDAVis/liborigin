@@ -22,6 +22,7 @@
 #include "OriginAnyParser.h"
 #include <sstream>
 #include <cinttypes>
+#include <iostream>
 
 /* define a macro to get an int (or uint) from a istringstream in binary mode */
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__

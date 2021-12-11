@@ -65,6 +65,7 @@ add_library (origin_static STATIC $<TARGET_OBJECTS:origin>)
 set_target_properties(origin_static PROPERTIES OUTPUT_NAME "origin" )
 
 if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
+  include(GNUInstallDirs)
 
   # Shared library
   add_library( origin_shared SHARED $<TARGET_OBJECTS:origin>)
@@ -74,13 +75,14 @@ if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
 	SOVERSION ${PROJECT_VERSION_MAJOR}
     )
   # Generate a pkg-config file matching this config
-  configure_file( "liborigin.pc.in" "$liborigin.pc" @ONLY )
+  configure_file( "liborigin.pc.in" "liborigin.pc" @ONLY )
 
+  if(ENABLE_TOOLS)
   # command line util
   add_executable(opj2dat opj2dat.cpp)
-  target_link_libraries (opj2dat origin_static)
+  target_link_libraries (opj2dat origin_shared)
+  endif ()
   
-  include(GNUInstallDirs)
   # install libraries
   install( TARGETS origin_shared origin_static
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -92,7 +94,9 @@ if( "${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}" )
   # install pkg-config file
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liborigin.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
   #
+  if(ENABLE_TOOLS)
   install(TARGETS opj2dat DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+  endif ()
   # documentation
   install(FILES COPYING FORMAT README
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
